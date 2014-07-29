@@ -44,7 +44,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  * (Transport implementors only) an internal data structure used by {@link AbstractChannel} to store its pending
  * outbound write requests.
  */
-public class ChannelOutboundBuffer {
+public final class ChannelOutboundBuffer {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(ChannelOutboundBuffer.class);
 
@@ -108,7 +108,7 @@ public class ChannelOutboundBuffer {
         TOTAL_PENDING_SIZE_UPDATER = pendingSizeUpdater;
     }
 
-    public ChannelOutboundBuffer(AbstractChannel channel) {
+    ChannelOutboundBuffer(AbstractChannel channel) {
         this.channel = channel;
     }
 
@@ -542,14 +542,19 @@ public class ChannelOutboundBuffer {
         return totalPendingSize;
     }
 
-    protected final void forEachFlushedMessage(FlushedMessageProcessor processor) throws Exception {
+    /**
+     * Call {@link FlushedMessageProcessor#process(Object)} foreach flushed message
+     * in this {@link ChannelOutboundBuffer} until {@link FlushedMessageProcessor#process(Object)}
+     * returns {@code false} or ther are no more flushed messages to process.
+     */
+    public void forEachFlushedMessage(FlushedMessageProcessor processor) throws Exception {
         if (processor == null) {
             throw new NullPointerException("processor");
         }
         Entry entry = flushedEntry;
         while (entry != null) {
             if (!entry.cancelled) {
-                if (!processor.processedFlushedMessage(entry.msg)) {
+                if (!processor.process(entry.msg)) {
                     return;
                 }
             }
@@ -562,7 +567,7 @@ public class ChannelOutboundBuffer {
          * Will be called for each flushed message until it either there are no more flushed messages or this
          * method returns {@code false}.
          */
-        boolean processedFlushedMessage(Object msg) throws Exception;
+        boolean process(Object msg) throws Exception;
     }
 
     static final class Entry {
